@@ -1,0 +1,50 @@
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+
+const char* ssid = "";
+const char* password = "";
+const char* mqtt_server = "broker.hivemq.com"; // or your local broker IP
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+#define BUTTON_PIN D3
+
+bool lastButtonState = HIGH;
+
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500); Serial.print(".");
+  }
+
+  client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  bool buttonState = digitalRead(BUTTON_PIN);
+  if (buttonState == LOW && lastButtonState == HIGH) {
+    client.publish("wemos/button", "pressed");
+    delay(200); // debounce
+  }
+  lastButtonState = buttonState;
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    if (client.connect("WemosPublisher")) {
+      // connected
+    } else {
+      delay(500);
+    }
+  }
+}
+
