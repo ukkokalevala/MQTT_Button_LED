@@ -1,0 +1,53 @@
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+
+const char* ssid = "SSID";
+const char* password = "PASSWORD";
+const char* mqtt_server = "broker.hivemq.com";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+#define LED_PIN D4
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+  Serial.begin(115200);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500); Serial.print(".");
+  }
+
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+
+  if (message == "pressed") {
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN)); // toggle LED
+  }
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    if (client.connect("WemosSubscriber")) {
+      client.subscribe("wemos/button");
+    } else {
+      delay(500);
+    }
+  }
+}
